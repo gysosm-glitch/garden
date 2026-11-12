@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>농작물 가격 챗봇</title>
+<style>
+  :root { --bg:#f6f7f2; --card:#fff; --text:#1f2a1f; --muted:#6b7a6b; --accent:#3d7a3d; --me:#e3f0e0; --line:#dfe5da; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#131a13; --card:#1c241c; --text:#e6ede4; --muted:#9aab98; --accent:#7cc47c; --me:#25372a; --line:#2e3a2e; }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:16px/1.6 system-ui, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif; }
+  main { max-width:760px; margin:0 auto; padding:24px 16px; display:flex; flex-direction:column; min-height:100vh; }
+  h1 { font-size:1.4rem; margin:0 0 4px; }
+  p.sub { margin:0 0 16px; color:var(--muted); font-size:.9rem; }
+  #log { flex:1; display:flex; flex-direction:column; gap:12px; }
+  .msg { padding:12px 14px; border-radius:12px; background:var(--card); border:1px solid var(--line); white-space:pre-wrap; word-break:break-word; }
+  .me { background:var(--me); align-self:flex-end; max-width:85%; }
+  .bot { align-self:flex-start; max-width:100%; }
+  .chips { display:flex; flex-wrap:wrap; gap:8px; margin:12px 0; }
+  .chips button { border:1px solid var(--line); background:var(--card); color:var(--text); border-radius:999px; padding:6px 12px; font:inherit; font-size:.85rem; cursor:pointer; }
+  form { display:flex; gap:8px; position:sticky; bottom:0; padding:12px 0; background:var(--bg); }
+  textarea { flex:1; resize:none; border:1px solid var(--line); border-radius:10px; padding:10px; font:inherit; background:var(--card); color:var(--text); }
+  form button { border:0; border-radius:10px; padding:0 18px; background:var(--accent); color:#fff; font:inherit; cursor:pointer; }
+  button:disabled { opacity:.5; cursor:wait; }
+</style>
+</head>
+<body>
+<main>
+  <h1>🌾 농작물 가격 챗봇</h1>
+  <p class="sub">쌀·찹쌀·콩·팥·녹두·고구마·감자·참깨·들깨·땅콩 중도매가격(2011년 1월~2026년 10월, KAMIS aT) 기반</p>
+  <div class="chips" id="chips">
+    <button>쌀 가격 앞으로 오를까?</button>
+    <button>2026년 10월 들깨 가격은?</button>
+    <button>감자 가격이 작년보다 싼 이유는?</button>
+    <button>팥 가격 최근 6개월 추세 알려줘</button>
+  </div>
+  <div id="log" aria-live="polite"></div>
+  <form id="f">
+    <label for="q" class="sr" hidden>질문</label>
+    <textarea id="q" rows="2" placeholder="예: 참깨 가격 11월에 오를까?" required></textarea>
+    <button id="send">보내기</button>
+  </form>
+</main>
+<script>
+  const log = document.getElementById("log"), q = document.getElementById("q"), send = document.getElementById("send");
+  const history = [];
+  function add(cls, text) {
+    const d = document.createElement("div");
+    d.className = "msg " + cls; d.textContent = text; log.appendChild(d);
+    d.scrollIntoView({ behavior: "smooth", block: "end" }); return d;
+  }
+  async function ask(text) {
+    add("me", text); history.push({ role: "user", content: text });
+    const wait = add("bot", "자료를 살펴보는 중…"); send.disabled = true;
+    try {
+      const r = await fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: history.slice(-20) }) });
+      const data = await r.json();
+      const answer = data.answer || data.error || "오류가 발생했어요.";
+      wait.textContent = answer;
+      if (data.answer) history.push({ role: "assistant", content: answer }); else history.pop();
+    } catch { wait.textContent = "네트워크 오류가 발생했어요."; history.pop(); }
+    send.disabled = false; q.focus();
+  }
+  document.getElementById("f").addEventListener("submit", e => {
+    e.preventDefault(); const t = q.value.trim(); if (!t || send.disabled) return; q.value = ""; ask(t);
+  });
+  q.addEventListener("keydown", e => { if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); document.getElementById("f").requestSubmit(); } });
+  document.getElementById("chips").addEventListener("click", e => { if (e.target.tagName === "BUTTON" && !send.disabled) ask(e.target.textContent); });
+</script>
+</body>
+</html>
