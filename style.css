@@ -1,0 +1,114 @@
+/* 들녘 장부: 논물빛 바탕, 포대 도장 라벨, 밭고랑 띠 */
+:root {
+  --paddy: #e7efe2;      /* 논물 비친 아침 바탕 */
+  --sheet: #fbfcf8;      /* 장부 종이 */
+  --field: #1f4d3a;      /* 짙은 벼 잎 */
+  --straw: #c99a2e;      /* 볏짚 */
+  --soil: #5a3e2b;       /* 흙 */
+  --bean: #8e2c2c;       /* 팥 */
+  --ink: #1d2a22;
+  --muted: #5d6b60;
+  --rule: #cfdac9;
+  --me: #dfe9d4;
+  --focus: #c99a2e;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paddy: #121a15; --sheet: #19231d; --field: #8fc6a4; --straw: #e0b552; --soil: #c9a88c;
+    --bean: #e08a7f; --ink: #e5ece6; --muted: #9fb0a4; --rule: #2c3a31; --me: #22332a; --focus: #e0b552;
+  }
+}
+:root[data-theme="dark"] {
+  --paddy: #121a15; --sheet: #19231d; --field: #8fc6a4; --straw: #e0b552; --soil: #c9a88c;
+  --bean: #e08a7f; --ink: #e5ece6; --muted: #9fb0a4; --rule: #2c3a31; --me: #22332a; --focus: #e0b552;
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: var(--paddy); color: var(--ink);
+  font: 17px/1.7 "Gowun Dodum", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+}
+:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+a { color: var(--field); }
+
+/* 밭고랑: 맨 위 띠 */
+.furrows {
+  height: 34px;
+  background:
+    repeating-linear-gradient(90deg, transparent 0 14px, color-mix(in srgb, var(--field) 22%, transparent) 14px 16px),
+    linear-gradient(var(--soil), color-mix(in srgb, var(--soil) 70%, var(--paddy)));
+}
+
+.wrap { max-width: 780px; margin: 0 auto; padding: 0 16px; }
+
+/* 포대 라벨 헤더 — 이 페이지의 유일한 강조 */
+.sack {
+  margin: 28px 0 20px; padding: 18px 20px 16px;
+  border: 3px double var(--soil); border-radius: 4px; background: var(--sheet);
+  position: relative;
+}
+.sack h1 {
+  font-family: "Do Hyeon", "Gowun Dodum", sans-serif; font-weight: 400;
+  font-size: clamp(2rem, 6vw, 3rem); line-height: 1.1; margin: 0; color: var(--field);
+  letter-spacing: .01em;
+}
+.sack p { margin: 6px 0 0; color: var(--muted); font-size: .95rem; max-width: 60ch; }
+.stamp {
+  position: absolute; top: -14px; right: 16px; transform: rotate(4deg);
+  font-family: "Do Hyeon", sans-serif; font-size: 1.15rem; color: var(--bean);
+  border: 3px solid var(--bean); border-radius: 8px; padding: 3px 14px; background: var(--sheet);
+}
+.crops { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0 0; padding: 0; list-style: none; }
+.crops li {
+  font-size: .85rem; padding: 1px 9px; border-radius: 3px;
+  border: 1px solid color-mix(in srgb, var(--soil) 45%, transparent); color: var(--soil);
+}
+
+/* 대화 */
+.log { display: flex; flex-direction: column; gap: 14px; padding-bottom: 8px; }
+.msg { max-width: 92%; white-space: pre-wrap; word-break: break-word; }
+.me {
+  align-self: flex-end; background: var(--me); padding: 10px 14px; border-radius: 14px 14px 4px 14px;
+}
+.bot {
+  align-self: flex-start; background: var(--sheet); padding: 12px 16px;
+  border-left: 4px solid var(--straw); border-radius: 2px 10px 10px 2px;
+}
+.bot .src { display: block; margin-top: 8px; font-size: .82rem; color: var(--muted); }
+.bot.wait { color: var(--muted); }
+
+/* 씨앗 봉투 같은 예시 질문 */
+.tags { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 18px; }
+.tags button {
+  font: inherit; font-size: .9rem; cursor: pointer; color: var(--ink);
+  background: var(--sheet); border: 1px dashed var(--soil); border-radius: 4px; padding: 6px 12px;
+}
+.tags button:hover { border-style: solid; }
+
+/* 입력 */
+.ask {
+  position: sticky; bottom: 0; display: flex; gap: 8px; padding: 12px 0 16px;
+  background: linear-gradient(transparent, var(--paddy) 30%);
+}
+.ask textarea {
+  flex: 1; resize: none; font: inherit; color: var(--ink); background: var(--sheet);
+  border: 2px solid var(--rule); border-radius: 8px; padding: 10px 12px;
+}
+.btn {
+  font: inherit; cursor: pointer; border: 0; border-radius: 8px; padding: 0 18px;
+  background: var(--field); color: var(--sheet);
+}
+.btn.ghost { background: transparent; color: var(--field); border: 2px solid var(--field); }
+.btn.warn { background: var(--bean); }
+button:disabled { opacity: .55; cursor: progress; }
+
+.foot { margin: 28px 0 0; padding: 14px 0 30px; border-top: 1px solid var(--rule); font-size: .85rem; color: var(--muted); }
+.foot ul { margin: 6px 0 0; padding-left: 18px; }
+
+@media (max-width: 520px) {
+  body { font-size: 16px; }
+  .sack { padding: 34px 14px 14px; }
+  .stamp { font-size: 1rem; }
+  .msg { max-width: 100%; }
+}

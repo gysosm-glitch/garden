@@ -43,7 +43,8 @@ export default async function handler(req, res) {
     const data = await r.json().catch(() => ({}));
     if (!r.ok) {
       console.error("ragbot", r.status, data.error);
-      return res.status(r.status === 429 ? 429 : 502).json({ error: HINTS[r.status] || "답변을 가져오지 못했어요. 잠시 후 다시 시도해주세요." });
+      const building = /not ready/i.test(data.error || "") && "챗봇 자료를 새로 정리하는 중이에요. 몇 분 뒤 다시 물어봐 주세요.";
+      return res.status(r.status === 429 ? 429 : 502).json({ error: HINTS[r.status] || building || "답변을 가져오지 못했어요. 잠시 후 다시 시도해주세요." });
     }
     return res.status(200).json({ answer: data.answer || "(빈 답변)", sources: data.sources || [] });
   } catch (err) {

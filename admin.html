@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>평가 장부</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Do+Hyeon&family=Gowun+Dodum&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<style>
+  h2 { font-family: "Do Hyeon", sans-serif; font-weight: 400; color: var(--field); font-size: 1.6rem; margin: 28px 0 10px; }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .row .btn { padding: 8px 16px; }
+  input[type=text], input[type=password], select, textarea {
+    font: inherit; color: var(--ink); background: var(--sheet); border: 2px solid var(--rule); border-radius: 6px; padding: 6px 10px;
+  }
+  .note { color: var(--muted); font-size: .9rem; margin: 6px 0; }
+  .err { color: var(--bean); }
+  table { width: 100%; border-collapse: collapse; background: var(--sheet); font-size: .92rem; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  th { color: var(--soil); font-weight: 400; }
+  td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  tr.pick { cursor: pointer; }
+  tr.pick:hover td { background: var(--me); }
+  .q { background: var(--sheet); border: 1px solid var(--rule); border-left: 4px solid var(--straw); border-radius: 2px 8px 8px 2px; padding: 12px 14px; margin: 0 0 10px; }
+  .q.bad { border-left-color: var(--bean); }
+  .q .grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-top: 8px; }
+  .q label { display: flex; flex-direction: column; font-size: .82rem; color: var(--muted); gap: 2px; }
+  .q textarea { resize: vertical; min-height: 2.4em; }
+  .q .full { grid-column: 1 / -1; }
+  .q .head { display: flex; gap: 8px; align-items: center; }
+  .q .head input[name=id] { width: 6.5em; }
+  .q .head .grow { flex: 1; }
+  .q .del { background: none; border: 0; color: var(--bean); cursor: pointer; font: inherit; }
+  .ans { white-space: pre-wrap; font-size: .9rem; margin: 6px 0 0; }
+  .bar { position: sticky; bottom: 0; background: linear-gradient(transparent, var(--paddy) 30%); padding: 14px 0; }
+  @media (max-width: 620px) { .q .grid { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="furrows" aria-hidden="true"></div>
+<main class="wrap">
+  <header class="sack">
+    <span class="stamp">관리자</span>
+    <h1>평가 장부</h1>
+    <p>챗봇 평가 문항을 고치고, 평가를 돌리고, 틀린 답을 확인합니다. <a href="./">상담 화면으로</a></p>
+  </header>
+
+  <form id="login" class="row">
+    <label for="pw">관리 비밀번호</label>
+    <input type="password" id="pw" autocomplete="current-password" required>
+    <button class="btn">들어가기</button>
+    <span id="loginMsg" class="note err" role="alert"></span>
+  </form>
+
+  <div id="app" hidden>
+    <h2>평가 실행</h2>
+    <form id="runForm" class="row">
+      <label for="label" hidden>메모</label>
+      <input type="text" id="label" placeholder="메모 (예: 수급표 추가 후)" maxlength="120" style="flex:1;min-width:200px">
+      <button class="btn" id="runBtn">평가 돌리기</button>
+    </form>
+    <p class="note">문항마다 하루 질문 한도에서 1회씩 차감됩니다. 50문항은 약 4~5분 걸려요.</p>
+    <p id="runMsg" class="note" role="status"></p>
+    <table>
+      <thead><tr><th>평가</th><th>메모</th><th class="num">진행</th><th class="num">정확도</th><th class="num">표 / 문서 / 없음</th></tr></thead>
+      <tbody id="runs"></tbody>
+    </table>
+    <div id="detail"></div>
+
+    <h2>평가 문항 <span id="count" class="note"></span></h2>
+    <p class="note">키워드 칸은 한 줄에 하나씩 씁니다. <b>모두 포함</b>은 정답에 전부 있어야 하고, <b>하나 이상</b>은 그중 하나만 있으면 되고, <b>있으면 오답</b>은 하나라도 나오면 틀린 것으로 칩니다. 최대 50문항.</p>
+    <div id="qs"></div>
+    <div class="bar row">
+      <button class="btn ghost" id="addBtn" type="button">문항 추가</button>
+      <button class="btn" id="saveBtn" type="button">문항 저장</button>
+      <span id="saveMsg" class="note" role="status"></span>
+    </div>
+  </div>
+</main>
+<script>
+const $ = (s, el = document) => el.querySelector(s);
+let pw = "";
+try { pw = sessionStorage.getItem("adminpw") || ""; } catch {}
+
+async function api(op, { method = "GET", body, id } = {}) {
+  const url = `/api/admin?op=${op}` + (id ? `&id=${encodeURIComponent(id)}` : "");
+  const r = await fetch(url, { method, headers: { "Content-Type": "application/json", "x-admin-password": pw }, body: body && JSON.stringify(body) });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw Object.assign(new Error(d.error || `오류 ${r.status}`), { status: r.status });
+  return d;
+}
+const pct = (v) => (v == null ? "–" : Math.round(v * 1000) / 10 + "%");
+const lines = (v) => (v || []).join("\n");
+const unlines = (s) => s.split("\n").map((x) => x.trim()).filter(Boolean);
+
+// ---------- runs
+async function loadRuns() {
+  const { runs = [] } = await api("runs");
+  const tb = $("#runs"); tb.innerHTML = "";
+  for (const r of runs) {
+    const tr = document.createElement("tr"); tr.className = "pick"; tr.tabIndex = 0;
+    const br = r.by_route || {};
+    const cells = [r.run.replace("eval_", "").replace(/_(\d{2})(\d{2})\d{2}$/, " $1:$2"), r.label || "", `${r.done}/${r.total}`, pct(r.accuracy),
+      [br.tables, br.documents, br.none].map(pct).join(" / ")];
+    cells.forEach((c, i) => { const td = document.createElement("td"); td.textContent = c; if (i >= 2) td.className = "num"; tr.appendChild(td); });
+    const open = () => showRun(r.run);
+    tr.addEventListener("click", open); tr.addEventListener("keydown", (e) => e.key === "Enter" && open());
+    tb.appendChild(tr);
+  }
+  if (runs.some((r) => r.status === "running")) setTimeout(loadRuns, 15000);
+}
+async function showRun(id) {
+  const box = $("#detail"); box.innerHTML = '<p class="note">불러오는 중…</p>';
+  const d = await api("run", { id });
+  const wrong = (d.rows || []).filter((r) => !r.correct);
+  box.innerHTML = "";
+  const h = document.createElement("h2"); h.textContent = `${id} — 틀린 문항 ${wrong.length}개`; box.appendChild(h);
+  if (!wrong.length) { const p = document.createElement("p"); p.className = "note"; p.textContent = d.status === "running" ? "아직 진행 중이에요." : "모두 맞혔어요."; box.appendChild(p); }
+  for (const r of wrong) {
+    const div = document.createElement("div"); div.className = "q bad";
+    const t = document.createElement("strong"); t.textContent = `${r.id} · ${r.question}`;
+    const why = document.createElement("p"); why.className = "note"; why.textContent = "채점: " + (r.why?.reason || "");
+    const a = document.createElement("p"); a.className = "ans"; a.textContent = r.answer;
+    div.append(t, why, a); box.appendChild(div);
+  }
+}
+$("#runForm").addEventListener("submit", async (e) => {
+  e.preventDefault(); const b = $("#runBtn"); b.disabled = true; $("#runMsg").textContent = "평가를 시작하는 중…";
+  try { const r = await api("runs", { method: "POST", body: { label: $("#label").value } }); $("#runMsg").textContent = `${r.run} 시작했어요. 목록이 15초마다 새로고침됩니다.`; loadRuns(); }
+  catch (err) { $("#runMsg").textContent = err.message; }
+  b.disabled = false;
+});
+
+// ---------- questions
+function card(q = {}) {
+  const div = document.createElement("div"); div.className = "q";
+  div.innerHTML = `
+    <div class="head">
+      <input name="id" type="text" placeholder="ID" aria-label="문항 ID">
+      <select name="route" aria-label="정답 출처">
+        <option value="tables">표</option><option value="documents">문서</option><option value="none">답 없음</option><option value="any">상관없음</option>
+      </select>
+      <label class="row" style="flex-direction:row;gap:4px"><input type="checkbox" name="unanswerable"> 답이 없어야 함</label>
+      <span class="grow"></span>
+      <button type="button" class="del">삭제</button>
+    </div>
+    <div class="grid">
+      <label class="full">질문<textarea name="question" rows="2" maxlength="1000"></textarea></label>
+      <label class="full">모범 답안<textarea name="reference_answer" rows="2"></textarea></label>
+      <label>모두 포함<textarea name="key_points" rows="2"></textarea></label>
+      <label>하나 이상<textarea name="any_of" rows="2"></textarea></label>
+      <label>있으면 오답<textarea name="must_not" rows="2"></textarea></label>
+      <label class="full">근거 (파일 + 쪽)<input name="evidence" type="text"></label>
+    </div>`;
+  const f = (n) => div.querySelector(`[name=${n}]`);
+  f("id").value = q.id || ""; f("route").value = q.route || "any"; f("unanswerable").checked = !!q.unanswerable;
+  for (const k of ["question", "reference_answer", "evidence"]) f(k).value = q[k] || "";
+  for (const k of ["key_points", "any_of", "must_not"]) f(k).value = lines(q[k]);
+  div.querySelector(".del").addEventListener("click", () => { div.remove(); count(); });
+  return div;
+}
+function read(div) {
+  const f = (n) => div.querySelector(`[name=${n}]`);
+  const q = { id: f("id").value.trim() || undefined, route: f("route").value, question: f("question").value.trim(),
+    reference_answer: f("reference_answer").value.trim(), evidence: f("evidence").value.trim(),
+    key_points: unlines(f("key_points").value), any_of: unlines(f("any_of").value), must_not: unlines(f("must_not").value) };
+  if (f("unanswerable").checked) q.unanswerable = true;
+  return q;
+}
+const count = () => { const n = $("#qs").children.length; $("#count").textContent = `${n} / 50`; $("#addBtn").disabled = n >= 50; };
+async function loadQs() {
+  const { questions = [] } = await api("questions");
+  $("#qs").innerHTML = ""; questions.forEach((q) => $("#qs").appendChild(card(q))); count();
+}
+$("#addBtn").addEventListener("click", () => { const c = card(); $("#qs").appendChild(c); count(); c.querySelector("textarea").focus(); });
+$("#saveBtn").addEventListener("click", async () => {
+  const qs = [...$("#qs").children].map(read);
+  const empty = qs.findIndex((q) => !q.question);
+  if (empty >= 0) { $("#saveMsg").textContent = `${empty + 1}번째 문항의 질문이 비어 있어요.`; return; }
+  const b = $("#saveBtn"); b.disabled = true; $("#saveMsg").textContent = "저장하는 중…";
+  try { const d = await api("questions", { method: "PUT", body: { questions: qs } }); $("#saveMsg").textContent = `${(d.questions || qs).length}개 문항을 저장했어요.` + (d.warnings?.length ? " 경고: " + d.warnings.join(" / ") : ""); }
+  catch (err) { $("#saveMsg").textContent = err.message; }
+  b.disabled = false;
+});
+
+// ---------- login
+async function enter() {
+  try { await Promise.all([loadQs(), loadRuns()]); $("#login").hidden = true; $("#app").hidden = false; try { sessionStorage.setItem("adminpw", pw); } catch {} }
+  catch (err) { $("#loginMsg").textContent = err.message; try { sessionStorage.removeItem("adminpw"); } catch {} }
+}
+$("#login").addEventListener("submit", (e) => { e.preventDefault(); pw = $("#pw").value; $("#loginMsg").textContent = ""; enter(); });
+if (pw) enter();
+</script>
+</body>
+</html>
