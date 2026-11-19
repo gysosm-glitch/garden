@@ -59,7 +59,7 @@
         body: JSON.stringify({ messages: history.slice(-20) }) });
       const data = await r.json();
       const answer = data.answer || data.error || "오류가 발생했어요.";
-      wait.textContent = answer;
+      wait.textContent = answer + (data.sources?.length ? "\n\n출처: " + data.sources.join(", ") : "");
       if (data.answer) history.push({ role: "assistant", content: answer }); else history.pop();
     } catch { wait.textContent = "네트워크 오류가 발생했어요."; history.pop(); }
     send.disabled = false; q.focus();

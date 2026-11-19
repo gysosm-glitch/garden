@@ -1,16 +1,6 @@
 {
   "name": "garden",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "private": true,
   "type": "module",
-  "dependencies": {
-    "@anthropic-ai/sdk": "^1.8.0"
-  }
+  "engines": { "node": ">=20" }
 }
